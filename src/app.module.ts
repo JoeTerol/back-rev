@@ -3,6 +3,8 @@ import { createObserveModule } from '@nestjs/observe';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthController } from './health/health.controller';
+   import { ConfigModule } from '@nestjs/config';
+   import { validateEnv } from './config/env.validation';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -16,8 +18,10 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
       appSecret: process.env.OBSERVE_APP_SECRET ?? 'YOUR_APP_SECRET',
       serviceId: 'revista-back',
     }),
+       ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],
+  
 })
 export class AppModule {}
