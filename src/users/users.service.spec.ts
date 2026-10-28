@@ -69,6 +69,18 @@ describe('UsersService', () => {
       }),
     ).rejects.toThrow(ConflictException);
   });
+    it('should find a user by id without the password hash', async () => {
+    const created = await service.create({
+      email: 'ana@example.com',
+      username: 'ana',
+      password: 'secret123',
+    });
+
+    const found = await service.findById(created.id);
+
+    expect(found?.username).toBe('ana');
+    expect(found?.passwordHash).toBeUndefined();
+  });
 
   it('should store the password encrypted', async () => {
     await service.create({

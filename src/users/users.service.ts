@@ -40,6 +40,10 @@ export class UsersService {
     return this.users.save(user);
   }
 
+  findById(id: string): Promise<User | null> {
+    return this.users.findOneBy({ id });
+  }
+
   findByEmailWithPassword(email: string): Promise<User | null> {
     return this.users
       .createQueryBuilder('user')
