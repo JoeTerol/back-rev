@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { Repository } from 'typeorm';
@@ -17,9 +17,23 @@ export class UsersService {
   ) {}
 
   async create(data: CreateUserData): Promise<User> {
+    const email = this.normalizeEmail(data.email);
+
+    const emailTaken = await this.users.exists({ where: { email } });
+    if (emailTaken) {
+      throw new ConflictException('Ya existe una cuenta con ese email');
+    }
+
+    const usernameTaken = await this.users.exists({
+      where: { username: data.username },
+    });
+    if (usernameTaken) {
+      throw new ConflictException('Ese nombre de usuario ya está en uso');
+    }
+
     const passwordHash = await bcrypt.hash(data.password, 10);
     const user = this.users.create({
-      email: data.email,
+      email,
       username: data.username,
       passwordHash,
     });
@@ -30,7 +44,11 @@ export class UsersService {
     return this.users
       .createQueryBuilder('user')
       .addSelect('user.passwordHash')
-      .where('user.email = :email', { email })
+      .where('user.email = :email', { email: this.normalizeEmail(email) })
       .getOne();
+  }
+
+  private normalizeEmail(email: string): string {
+    return email.toLowerCase();
   }
 }

@@ -29,7 +29,11 @@ describe('User entity', () => {
 
   it('should save a user with the role "user" by default', async () => {
     await repo.save(
-      repo.create({ email: 'ana@example.com', username: 'ana', passwordHash: 'hash' }),
+      repo.create({
+        email: 'ana@example.com',
+        username: 'ana',
+        passwordHash: 'hash',
+      }),
     );
 
     const found = await repo.findOneByOrFail({ email: 'ana@example.com' });
@@ -39,12 +43,20 @@ describe('User entity', () => {
 
   it('should not allow two users with the same email', async () => {
     await repo.save(
-      repo.create({ email: 'ana@example.com', username: 'ana', passwordHash: 'hash' }),
+      repo.create({
+        email: 'ana@example.com',
+        username: 'ana',
+        passwordHash: 'hash',
+      }),
     );
 
     await expect(
       repo.save(
-        repo.create({ email: 'ana@example.com', username: 'otra', passwordHash: 'hash' }),
+        repo.create({
+          email: 'ana@example.com',
+          username: 'otra',
+          passwordHash: 'hash',
+        }),
       ),
     ).rejects.toThrow();
   });
