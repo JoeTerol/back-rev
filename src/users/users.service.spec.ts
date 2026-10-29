@@ -83,7 +83,9 @@ describe('UsersService', () => {
     const user = await service.findByEmailWithPassword('ana@example.com');
 
     expect(user?.passwordHash).not.toBe('secret123');
-    expect(await bcrypt.compare('secret123', user?.passwordHash ?? '')).toBe(true);
+    expect(await bcrypt.compare('secret123', user?.passwordHash ?? '')).toBe(
+      true,
+    );
   });
 
   it('should find a user by id without the password hash', async () => {
