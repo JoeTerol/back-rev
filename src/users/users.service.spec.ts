@@ -1,9 +1,9 @@
+import { ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { User } from './user.entity';
 import { UsersService } from './users.service';
-import { ConflictException } from '@nestjs/common';
 
 describe('UsersService', () => {
   let moduleRef: TestingModule;
@@ -28,6 +28,7 @@ describe('UsersService', () => {
   afterEach(async () => {
     await moduleRef.close();
   });
+
   it('should reject a duplicate email with ConflictException', async () => {
     await service.create({
       email: 'ana@example.com',
@@ -43,6 +44,7 @@ describe('UsersService', () => {
       }),
     ).rejects.toThrow(ConflictException);
   });
+
   it('should treat emails as case-insensitive', async () => {
     await service.create({
       email: 'Ana@Example.com',
@@ -54,6 +56,7 @@ describe('UsersService', () => {
 
     expect(found?.email).toBe('ana@example.com');
   });
+
   it('should reject a duplicate username with ConflictException', async () => {
     await service.create({
       email: 'ana@example.com',
@@ -69,7 +72,21 @@ describe('UsersService', () => {
       }),
     ).rejects.toThrow(ConflictException);
   });
-    it('should find a user by id without the password hash', async () => {
+
+  it('should store the password encrypted', async () => {
+    await service.create({
+      email: 'ana@example.com',
+      username: 'ana',
+      password: 'secret123',
+    });
+
+    const user = await service.findByEmailWithPassword('ana@example.com');
+
+    expect(user?.passwordHash).not.toBe('secret123');
+    expect(await bcrypt.compare('secret123', user?.passwordHash ?? '')).toBe(true);
+  });
+
+  it('should find a user by id without the password hash', async () => {
     const created = await service.create({
       email: 'ana@example.com',
       username: 'ana',
@@ -82,18 +99,19 @@ describe('UsersService', () => {
     expect(found?.passwordHash).toBeUndefined();
   });
 
-  it('should store the password encrypted', async () => {
+  it('should find a user by username', async () => {
     await service.create({
       email: 'ana@example.com',
       username: 'ana',
       password: 'secret123',
     });
 
-    const user = await service.findByEmailWithPassword('ana@example.com');
+    const found = await service.findByUsername('ana');
 
-    expect(user?.passwordHash).not.toBe('secret123');
-    expect(await bcrypt.compare('secret123', user?.passwordHash ?? '')).toBe(
-      true,
-    );
+    expect(found?.email).toBe('ana@example.com');
+  });
+
+  it('should return null for an unknown username', async () => {
+    expect(await service.findByUsername('nadie')).toBeNull();
   });
 });

@@ -44,6 +44,10 @@ export class UsersService {
     return this.users.findOneBy({ id });
   }
 
+  findByUsername(username: string): Promise<User | null> {
+    return this.users.findOneBy({ username });
+  }
+
   findByEmailWithPassword(email: string): Promise<User | null> {
     return this.users
       .createQueryBuilder('user')
