@@ -27,16 +27,17 @@ describe('Auth register (e2e)', () => {
     await app.close();
   });
 
-  it('should register a new user', async () => {
+  it('should register a new user and return an access token', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/auth/register')
       .send(newUser)
       .expect(201);
 
-    expect(res.body.username).toBe('ana');
-    expect(res.body.email).toBe('ana@example.com');
-    expect(res.body.role).toBe('user');
-    expect(res.body).not.toHaveProperty('passwordHash');
+    expect(res.body.accessToken).toEqual(expect.any(String));
+    expect(res.body.user.username).toBe('ana');
+    expect(res.body.user.email).toBe('ana@example.com');
+    expect(res.body.user.role).toBe('user');
+    expect(res.body.user).not.toHaveProperty('passwordHash');
   });
 
   it('should make the new user visible in the public profile', async () => {

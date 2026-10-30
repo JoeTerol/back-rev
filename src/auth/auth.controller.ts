@@ -1,11 +1,13 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import {
   ApiConflictResponse,
   ApiOperation,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { AuthService } from './auth.service';
+import { LoginDto } from './dto/login.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -17,5 +19,13 @@ export class AuthController {
   @Post('register')
   register(@Body() dto: CreateUserDto) {
     return this.authService.register(dto);
+  }
+
+  @ApiOperation({ summary: 'Iniciar sesión' })
+  @ApiUnauthorizedResponse({ description: 'Credenciales inválidas' })
+  @HttpCode(HttpStatus.OK)
+  @Post('login')
+  login(@Body() dto: LoginDto) {
+    return this.authService.login(dto);
   }
 }
