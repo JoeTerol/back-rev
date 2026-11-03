@@ -8,6 +8,7 @@ import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
+import { AccountSuspendedException } from './account-suspended.exception';
 import { IS_PUBLIC_KEY } from './public.decorator';
 
 interface AuthenticatedRequest {
@@ -52,6 +53,9 @@ export class JwtAuthGuard implements CanActivate {
     const user = await this.usersService.findById(userId);
     if (!user) {
       throw new UnauthorizedException();
+    }
+    if (user.banned) {
+      throw new AccountSuspendedException();
     }
 
     request.user = user;

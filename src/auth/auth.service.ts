@@ -4,6 +4,7 @@ import * as bcrypt from 'bcryptjs';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
+import { AccountSuspendedException } from './account-suspended.exception';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokensService } from './refresh-tokens.service';
 
@@ -34,6 +35,10 @@ export class AuthService {
     if (!user || !passwordOk) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
+    // Recién acá, con la clave verificada, se avisa de la suspensión.
+    if (user.banned) {
+      throw new AccountSuspendedException();
+    }
 
     return this.startSession(user);
   }
@@ -45,6 +50,10 @@ export class AuthService {
     if (!user) {
       await this.refreshTokens.revokeAllForUser(rotated.userId);
       throw new UnauthorizedException('Sesión inválida');
+    }
+    if (user.banned) {
+      await this.refreshTokens.revokeAllForUser(user.id);
+      throw new AccountSuspendedException();
     }
 
     return {

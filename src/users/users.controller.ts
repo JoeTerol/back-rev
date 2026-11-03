@@ -3,10 +3,13 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   NotFoundException,
   Param,
   ParseUUIDPipe,
   Patch,
+  Post,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -77,5 +80,42 @@ export class UsersController {
 
     const user = await this.usersService.updateRole(id, dto.role);
     return { id: user.id, username: user.username, role: user.role };
+  }
+
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Suspender una cuenta (solo admin)' })
+  @ApiForbiddenResponse({
+    description: 'No sos admin, o la cuenta a suspender es de un admin',
+  })
+  @ApiNotFoundResponse({ description: 'Usuario no encontrado' })
+  @HttpCode(HttpStatus.OK)
+  @Post(':id/ban')
+  async ban(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() currentUser: User,
+  ) {
+    if (id === currentUser.id) {
+      throw new BadRequestException('No podés suspender tu propia cuenta');
+    }
+
+    const user = await this.usersService.setBanned(id, true);
+    return this.toBanView(user);
+  }
+
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reactivar una cuenta suspendida (solo admin)' })
+  @ApiForbiddenResponse({ description: 'No tenés permiso para hacer esto' })
+  @ApiNotFoundResponse({ description: 'Usuario no encontrado' })
+  @HttpCode(HttpStatus.OK)
+  @Post(':id/unban')
+  async unban(@Param('id', ParseUUIDPipe) id: string) {
+    const user = await this.usersService.setBanned(id, false);
+    return this.toBanView(user);
+  }
+
+  private toBanView(user: User) {
+    return { id: user.id, username: user.username, banned: user.banned };
   }
 }

@@ -23,6 +23,9 @@ export class User {
   @Column({ type: 'varchar', length: 20, default: Role.USER })
   role: Role;
 
+  @Column({ default: false })
+  banned: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 }

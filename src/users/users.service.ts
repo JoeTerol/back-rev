@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -68,6 +69,19 @@ export class UsersService {
     }
 
     user.role = role;
+    return this.users.save(user);
+  }
+
+  async setBanned(id: string, banned: boolean): Promise<User> {
+    const user = await this.findById(id);
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+    if (banned && user.role === Role.ADMIN) {
+      throw new ForbiddenException('No se puede suspender a un administrador');
+    }
+
+    user.banned = banned;
     return this.users.save(user);
   }
 
