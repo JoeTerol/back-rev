@@ -8,12 +8,14 @@ import {
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { Public } from './public.decorator';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @ApiOperation({ summary: 'Registrar una cuenta nueva' })
   @ApiConflictResponse({ description: 'El email o el username ya están en uso' })
   @Post('register')
@@ -21,6 +23,7 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
+  @Public()
   @ApiOperation({ summary: 'Iniciar sesión' })
   @ApiUnauthorizedResponse({ description: 'Credenciales inválidas' })
   @HttpCode(HttpStatus.OK)
