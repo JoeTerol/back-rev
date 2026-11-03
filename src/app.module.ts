@@ -1,13 +1,15 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { createObserveModule } from '@nestjs/observe';
+import { ThrottlerGuard, ThrottlerModule, minutes } from '@nestjs/throttler';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { HealthController } from './health/health.controller';
-import { ConfigModule } from '@nestjs/config';
-import { validateEnv } from './config/env.validation';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { validateEnv } from './config/env.validation';
+import { HealthController } from './health/health.controller';
+import { UsersModule } from './users/users.module';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -22,6 +24,11 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
       serviceId: 'revista-back',
     }),
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    // Piso general: 100 pedidos por minuto por ruta y por IP. El login y el
+    // register tienen límites más duros (ver auth/throttle-limits.ts).
+    ThrottlerModule.forRoot({
+      throttlers: [{ ttl: minutes(1), limit: 100 }],
+    }),
     TypeOrmModule.forRoot({
       type: 'sqljs',
       autoLoadEntities: true,
@@ -31,6 +38,10 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     AuthModule,
   ],
   controllers: [AppController, HealthController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    // Guard global. Frena el abuso antes de que lleguen los guards de auth.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}
