@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -68,8 +69,40 @@ export class IssuesService {
     return this.issues.save(issue);
   }
 
+  async publish(id: string): Promise<Issue> {
+    const issue = await this.getById(id);
+    if (issue.status === IssueStatus.PUBLISHED) {
+      return issue;
+    }
+
+    const pageCount = await this.issues.manager.countBy(IssuePage, {
+      issueId: issue.id,
+    });
+    if (pageCount === 0) {
+      throw new ConflictException(
+        'No se puede publicar una edición sin páginas',
+      );
+    }
+
+    issue.status = IssueStatus.PUBLISHED;
+    return this.issues.save(issue);
+  }
+
+  async unpublish(id: string): Promise<Issue> {
+    const issue = await this.getById(id);
+    if (issue.status === IssueStatus.DRAFT) {
+      return issue;
+    }
+
+    issue.status = IssueStatus.DRAFT;
+    return this.issues.save(issue);
+  }
+
   async remove(id: string): Promise<void> {
     const issue = await this.getById(id);
+    if (issue.status === IssueStatus.PUBLISHED) {
+      throw new ConflictException('Despublicá la edición antes de borrarla');
+    }
 
     // Todo o nada: las páginas y la edición se borran en una transacción.
     await this.issues.manager.transaction(async (manager) => {
