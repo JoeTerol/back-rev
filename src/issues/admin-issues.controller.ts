@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOperation,
@@ -58,8 +59,28 @@ export class AdminIssuesController {
   }
 
   @Roles(Role.EDITOR, Role.ADMIN)
+  @ApiOperation({ summary: 'Publicar una edición (necesita al menos una página)' })
+  @ApiNotFoundResponse({ description: 'Edición no encontrada' })
+  @ApiConflictResponse({ description: 'La edición no tiene páginas' })
+  @HttpCode(HttpStatus.OK)
+  @Post(':id/publish')
+  async publish(@Param('id', ParseUUIDPipe) id: string) {
+    return this.toView(await this.issuesService.publish(id));
+  }
+
+  @Roles(Role.EDITOR, Role.ADMIN)
+  @ApiOperation({ summary: 'Volver una edición a borrador' })
+  @ApiNotFoundResponse({ description: 'Edición no encontrada' })
+  @HttpCode(HttpStatus.OK)
+  @Post(':id/unpublish')
+  async unpublish(@Param('id', ParseUUIDPipe) id: string) {
+    return this.toView(await this.issuesService.unpublish(id));
+  }
+
+  @Roles(Role.EDITOR, Role.ADMIN)
   @ApiOperation({ summary: 'Borrar una edición con todas sus páginas' })
   @ApiNotFoundResponse({ description: 'Edición no encontrada' })
+  @ApiConflictResponse({ description: 'La edición está publicada' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(':id')
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
