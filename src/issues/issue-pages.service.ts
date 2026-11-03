@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -19,54 +20,68 @@ export class IssuePagesService {
 
   async list(issueId: string): Promise<IssuePage[]> {
     await this.assertIssueExists(this.pages.manager, issueId);
-    return this.pages.find({
-      where: { issueId },
-      order: { pageNumber: 'ASC' },
-    });
+    return this.loadOrdered(this.pages.manager, issueId);
   }
 
   add(issueId: string, dto: CreatePageDto): Promise<IssuePage> {
     return this.pages.manager.transaction(async (manager) => {
       await this.assertIssueExists(manager, issueId);
 
-      const count = await manager.countBy(IssuePage, { issueId });
-      const page = manager.create(IssuePage, {
-        issueId,
-        pageNumber: count + 1,
-        data: dto.data ?? {},
-      });
-      return manager.save(page);
+      const all = await this.loadOrdered(manager, issueId);
+      const position = dto.position ?? all.length + 1;
+      this.assertPosition(position, all.length + 1);
+
+      const page = await manager.save(
+        manager.create(IssuePage, {
+          issueId,
+          pageNumber: position,
+          data: dto.data ?? {},
+        }),
+      );
+
+      // Las páginas que estaban desde ese lugar en adelante se corren una.
+      all.splice(position - 1, 0, page);
+      await this.renumber(manager, all);
+      return page;
     });
   }
 
-  async update(
+  update(
     issueId: string,
     pageId: string,
     dto: UpdatePageDto,
   ): Promise<IssuePage> {
-    const page = await this.pages.findOneBy({ id: pageId, issueId });
-    if (!page) {
-      throw new NotFoundException('Página no encontrada');
-    }
+    return this.pages.manager.transaction(async (manager) => {
+      const all = await this.loadOrdered(manager, issueId);
+      const page = all.find((other) => other.id === pageId);
+      if (!page) {
+        throw new NotFoundException('Página no encontrada');
+      }
 
-    if (dto.data !== undefined) {
-      page.data = dto.data;
-    }
-    return this.pages.save(page);
+      if (dto.data !== undefined) {
+        page.data = dto.data;
+      }
+
+      if (dto.position !== undefined) {
+        this.assertPosition(dto.position, all.length);
+        // Se la saca de su lugar y se la pone en el nuevo; el resto se acomoda.
+        const reordered = all.filter((other) => other.id !== pageId);
+        reordered.splice(dto.position - 1, 0, page);
+        await this.renumber(manager, reordered);
+      }
+
+      return manager.save(page);
+    });
   }
 
   async remove(issueId: string, pageId: string): Promise<void> {
     // Todo o nada: se borra la página y se corre la numeración, o no se hace nada.
     await this.pages.manager.transaction(async (manager) => {
-      const page = await manager.findOneBy(IssuePage, { id: pageId, issueId });
-      if (!page) {
+      const all = await this.loadOrdered(manager, issueId);
+      if (!all.some((page) => page.id === pageId)) {
         throw new NotFoundException('Página no encontrada');
       }
 
-      const all = await manager.find(IssuePage, {
-        where: { issueId },
-        order: { pageNumber: 'ASC' },
-      });
       const issue = await manager.findOneByOrFail(Issue, { id: issueId });
       if (issue.status === IssueStatus.PUBLISHED && all.length === 1) {
         throw new ConflictException(
@@ -77,9 +92,24 @@ export class IssuePagesService {
       await manager.delete(IssuePage, { id: pageId });
       await this.renumber(
         manager,
-        all.filter((other) => other.id !== pageId),
+        all.filter((page) => page.id !== pageId),
       );
     });
+  }
+
+  private loadOrdered(manager: EntityManager, issueId: string) {
+    return manager.find(IssuePage, {
+      where: { issueId },
+      order: { pageNumber: 'ASC' },
+    });
+  }
+
+  private assertPosition(position: number, max: number) {
+    if (position < 1 || position > max) {
+      throw new BadRequestException(
+        `La posición tiene que estar entre 1 y ${max}`,
+      );
+    }
   }
 
   // Deja las páginas numeradas 1, 2, 3… en el orden en que vienen.

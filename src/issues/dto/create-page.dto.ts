@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsObject, IsOptional } from 'class-validator';
+import { IsInt, IsObject, IsOptional, Min } from 'class-validator';
 
 export class CreatePageDto {
   @ApiPropertyOptional({
@@ -9,4 +9,15 @@ export class CreatePageDto {
   @IsOptional()
   @IsObject()
   data?: Record<string, unknown>;
+
+  @ApiPropertyOptional({
+    description:
+      'Lugar de la página en la edición (1 = primera). Si falta, va al final',
+    minimum: 1,
+    example: 2,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  position?: number;
 }
