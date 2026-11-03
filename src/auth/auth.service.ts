@@ -5,6 +5,7 @@ import { CreateUserDto } from '../users/dto/create-user.dto';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
+import { RefreshTokensService } from './refresh-tokens.service';
 
 @Injectable()
 export class AuthService {
@@ -15,11 +16,12 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly refreshTokens: RefreshTokensService,
   ) {}
 
   async register(dto: CreateUserDto) {
     const user = await this.usersService.create(dto);
-    return this.buildAuthResponse(user);
+    return this.startSession(user);
   }
 
   async login(dto: LoginDto) {
@@ -33,18 +35,51 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    return this.buildAuthResponse(user);
+    return this.startSession(user);
   }
 
-  private async buildAuthResponse(user: User) {
+  async refresh(refreshToken: string) {
+    const rotated = await this.refreshTokens.rotate(refreshToken);
+
+    const user = await this.usersService.findById(rotated.userId);
+    if (!user) {
+      await this.refreshTokens.revokeAllForUser(rotated.userId);
+      throw new UnauthorizedException('Sesión inválida');
+    }
+
     return {
-      accessToken: await this.jwtService.signAsync({ sub: user.id }),
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        role: user.role,
-      },
+      accessToken: await this.signAccessToken(user),
+      refreshToken: rotated.refreshToken,
+      user: this.toView(user),
+    };
+  }
+
+  logout(refreshToken: string): Promise<void> {
+    return this.refreshTokens.revoke(refreshToken);
+  }
+
+  logoutAll(userId: string): Promise<void> {
+    return this.refreshTokens.revokeAllForUser(userId);
+  }
+
+  private async startSession(user: User) {
+    return {
+      accessToken: await this.signAccessToken(user),
+      refreshToken: await this.refreshTokens.issue(user.id),
+      user: this.toView(user),
+    };
+  }
+
+  private signAccessToken(user: User): Promise<string> {
+    return this.jwtService.signAsync({ sub: user.id });
+  }
+
+  private toView(user: User) {
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      role: user.role,
     };
   }
 }
