@@ -1,7 +1,12 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { Repository } from 'typeorm';
+import { Role } from '../common/roles.enum';
 import { User } from './user.entity';
 
 export interface CreateUserData {
@@ -54,6 +59,16 @@ export class UsersService {
       .addSelect('user.passwordHash')
       .where('user.email = :email', { email: this.normalizeEmail(email) })
       .getOne();
+  }
+
+  async updateRole(id: string, role: Role): Promise<User> {
+    const user = await this.findById(id);
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    user.role = role;
+    return this.users.save(user);
   }
 
   private normalizeEmail(email: string): string {

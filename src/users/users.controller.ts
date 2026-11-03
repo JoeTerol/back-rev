@@ -1,6 +1,16 @@
-import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOperation,
   ApiTags,
@@ -8,6 +18,9 @@ import {
 } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/public.decorator';
+import { Roles } from '../auth/roles.decorator';
+import { Role } from '../common/roles.enum';
+import { UpdateRoleDto } from './dto/update-role.dto';
 import { User } from './user.entity';
 import { UsersService } from './users.service';
 
@@ -45,5 +58,24 @@ export class UsersController {
       role: user.role,
       createdAt: user.createdAt,
     };
+  }
+
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cambiar el rol de un usuario (solo admin)' })
+  @ApiForbiddenResponse({ description: 'No tenés permiso para hacer esto' })
+  @ApiNotFoundResponse({ description: 'Usuario no encontrado' })
+  @Patch(':id/role')
+  async updateRole(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateRoleDto,
+    @CurrentUser() currentUser: User,
+  ) {
+    if (id === currentUser.id) {
+      throw new BadRequestException('No podés cambiar tu propio rol');
+    }
+
+    const user = await this.usersService.updateRole(id, dto.role);
+    return { id: user.id, username: user.username, role: user.role };
   }
 }
