@@ -31,7 +31,7 @@ export class UsersService {
     }
 
     const usernameTaken = await this.users.exists({
-      where: { username: data.username },
+      where: { usernameLower: this.normalizeUsername(data.username) },
     });
     if (usernameTaken) {
       throw new ConflictException('Ese nombre de usuario ya está en uso');
@@ -51,7 +51,9 @@ export class UsersService {
   }
 
   findByUsername(username: string): Promise<User | null> {
-    return this.users.findOneBy({ username });
+    return this.users.findOneBy({
+      usernameLower: this.normalizeUsername(username),
+    });
   }
 
   findByEmailWithPassword(email: string): Promise<User | null> {
@@ -87,5 +89,9 @@ export class UsersService {
 
   private normalizeEmail(email: string): string {
     return email.toLowerCase();
+  }
+
+  private normalizeUsername(username: string): string {
+    return username.toLowerCase();
   }
 }
