@@ -39,16 +39,7 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
-    let userId: string;
-    try {
-      const payload = await this.jwtService.verifyAsync<{ sub: string }>(
-        token,
-        { algorithms: ['HS256'] },
-      );
-      userId = payload.sub;
-    } catch {
-      throw new UnauthorizedException();
-    }
+    const userId = await this.readUserId(token);
 
     const user = await this.usersService.findById(userId);
     if (!user) {
@@ -60,6 +51,24 @@ export class JwtAuthGuard implements CanActivate {
 
     request.user = user;
     return true;
+  }
+
+  private async readUserId(token: string): Promise<string> {
+    let payload: { sub?: unknown };
+    try {
+      payload = await this.jwtService.verifyAsync<{ sub?: unknown }>(token, {
+        algorithms: ['HS256'],
+      });
+    } catch {
+      throw new UnauthorizedException();
+    }
+
+    // Un token firmado pero sin `sub` no identifica a nadie. Sin esta
+    // comprobación, `findById(undefined)` podría buscar sin filtro.
+    if (typeof payload.sub !== 'string' || payload.sub.length === 0) {
+      throw new UnauthorizedException();
+    }
+    return payload.sub;
   }
 
   private extractToken(request: AuthenticatedRequest): string | null {
