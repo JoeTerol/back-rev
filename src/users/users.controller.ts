@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -10,8 +11,10 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
@@ -23,6 +26,9 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/public.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '../common/roles.enum';
+import { endOfDayInArgentina } from '../premium/expiry-date';
+import { isPremium } from '../premium/premium-rules';
+import { SetPremiumDto } from './dto/set-premium.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { User } from './user.entity';
 import { UsersService } from './users.service';
@@ -42,6 +48,8 @@ export class UsersController {
       email: user.email,
       username: user.username,
       role: user.role,
+      premiumUntil: user.premiumUntil,
+      isPremium: isPremium(user.premiumUntil, new Date()),
       createdAt: user.createdAt,
     };
   }
@@ -115,7 +123,57 @@ export class UsersController {
     return this.toBanView(user);
   }
 
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Darle premium a un usuario hasta una fecha (solo admin)',
+  })
+  @ApiBadRequestResponse({
+    description: 'La fecha no tiene formato AAAA-MM-DD o ya pasó',
+  })
+  @ApiForbiddenResponse({ description: 'No tenés permiso para hacer esto' })
+  @ApiNotFoundResponse({ description: 'Usuario no encontrado' })
+  @Put(':id/premium')
+  async grantPremium(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetPremiumDto,
+  ) {
+    const premiumUntil = endOfDayInArgentina(dto.until);
+    if (!premiumUntil) {
+      throw new BadRequestException(
+        'La fecha tiene que tener formato AAAA-MM-DD, por ejemplo 2027-12-31',
+      );
+    }
+    if (!isPremium(premiumUntil, new Date())) {
+      throw new BadRequestException('La fecha de vencimiento ya pasó');
+    }
+
+    const user = await this.usersService.setPremiumUntil(id, premiumUntil);
+    return this.toPremiumView(user);
+  }
+
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Sacarle el premium a un usuario (solo admin)' })
+  @ApiForbiddenResponse({ description: 'No tenés permiso para hacer esto' })
+  @ApiNotFoundResponse({ description: 'Usuario no encontrado' })
+  @HttpCode(HttpStatus.OK)
+  @Delete(':id/premium')
+  async revokePremium(@Param('id', ParseUUIDPipe) id: string) {
+    const user = await this.usersService.setPremiumUntil(id, null);
+    return this.toPremiumView(user);
+  }
+
   private toBanView(user: User) {
     return { id: user.id, username: user.username, banned: user.banned };
+  }
+
+  private toPremiumView(user: User) {
+    return {
+      id: user.id,
+      username: user.username,
+      premiumUntil: user.premiumUntil,
+      isPremium: isPremium(user.premiumUntil, new Date()),
+    };
   }
 }

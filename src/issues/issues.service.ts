@@ -51,6 +51,7 @@ export class IssuesService {
       title: dto.title,
       slug,
       summary: dto.summary ?? '',
+      isPremium: dto.isPremium ?? false,
       status: IssueStatus.DRAFT,
     });
     return this.issues.save(issue);
@@ -66,6 +67,9 @@ export class IssuesService {
     if (dto.summary !== undefined) {
       issue.summary = dto.summary;
     }
+        if (dto.isPremium !== undefined) {
+      issue.isPremium = dto.isPremium;
+    } 
     return this.issues.save(issue);
   }
 

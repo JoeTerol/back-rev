@@ -26,6 +26,10 @@ export class Issue {
 
   @Column({ type: 'varchar', length: 20, default: IssueStatus.DRAFT })
   status: IssueStatus;
+    // Si es premium, quien no tiene suscripción solo ve una vista previa.
+  @Column({ default: false })
+  isPremium: boolean;
+  
 
   @OneToMany(() => IssuePage, (page) => page.issue)
   pages: IssuePage[];

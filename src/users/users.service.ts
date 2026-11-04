@@ -86,6 +86,14 @@ export class UsersService {
     user.banned = banned;
     return this.users.save(user);
   }
+    async setPremiumUntil(id: string, premiumUntil: Date | null): Promise<User> {
+    const user = await this.findById(id);
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+    user.premiumUntil = premiumUntil;
+    return this.users.save(user);
+  }
 
   private normalizeEmail(email: string): string {
     return email.toLowerCase();

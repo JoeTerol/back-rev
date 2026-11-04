@@ -163,6 +163,7 @@ describe('Issues, editorial management (e2e)', () => {
     expect(Object.keys(res.body[0]).sort()).toEqual([
       'createdAt',
       'id',
+      'isPremium',
       'slug',
       'status',
       'summary',

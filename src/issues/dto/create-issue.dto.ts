@@ -1,6 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 // Saca los espacios de los costados antes de validar.
 const trim = ({ value }: { value: unknown }) =>
@@ -20,4 +26,13 @@ export class CreateIssueDto {
   @IsString()
   @MaxLength(500)
   summary?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Si es premium, quien no tiene suscripción solo ve las primeras páginas. Por defecto es gratis',
+    example: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isPremium?: boolean;
 }

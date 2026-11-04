@@ -13,7 +13,6 @@ import {
 import {
   ApiBearerAuth,
   ApiConflictResponse,
-  ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOperation,
   ApiTags,
@@ -25,15 +24,14 @@ import { UpdateIssueDto } from './dto/update-issue.dto';
 import { Issue } from './issue.entity';
 import { IssuesService } from './issues.service';
 
-@ApiTags('admin / issues')
+@ApiTags('admin-issues')
 @ApiBearerAuth()
-@ApiForbiddenResponse({ description: 'Solo editores y administradores' })
 @Controller('admin/issues')
 export class AdminIssuesController {
   constructor(private readonly issuesService: IssuesService) {}
 
   @Roles(Role.EDITOR, Role.ADMIN)
-  @ApiOperation({ summary: 'Crear una edición (queda en borrador)' })
+  @ApiOperation({ summary: 'Crear una edición (queda como borrador)' })
   @Post()
   async create(@Body() dto: CreateIssueDto) {
     return this.toView(await this.issuesService.create(dto));
@@ -48,7 +46,7 @@ export class AdminIssuesController {
   }
 
   @Roles(Role.EDITOR, Role.ADMIN)
-  @ApiOperation({ summary: 'Editar el título o el resumen de una edición' })
+  @ApiOperation({ summary: 'Editar el título, el resumen o si es premium' })
   @ApiNotFoundResponse({ description: 'Edición no encontrada' })
   @Patch(':id')
   async update(
@@ -59,9 +57,11 @@ export class AdminIssuesController {
   }
 
   @Roles(Role.EDITOR, Role.ADMIN)
-  @ApiOperation({ summary: 'Publicar una edición (necesita al menos una página)' })
+  @ApiOperation({ summary: 'Publicar una edición' })
   @ApiNotFoundResponse({ description: 'Edición no encontrada' })
-  @ApiConflictResponse({ description: 'La edición no tiene páginas' })
+  @ApiConflictResponse({
+    description: 'No se puede publicar una edición sin páginas',
+  })
   @HttpCode(HttpStatus.OK)
   @Post(':id/publish')
   async publish(@Param('id', ParseUUIDPipe) id: string) {
@@ -80,7 +80,9 @@ export class AdminIssuesController {
   @Roles(Role.EDITOR, Role.ADMIN)
   @ApiOperation({ summary: 'Borrar una edición con todas sus páginas' })
   @ApiNotFoundResponse({ description: 'Edición no encontrada' })
-  @ApiConflictResponse({ description: 'La edición está publicada' })
+  @ApiConflictResponse({
+    description: 'Hay que despublicar la edición antes de borrarla',
+  })
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(':id')
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
@@ -94,6 +96,7 @@ export class AdminIssuesController {
       slug: issue.slug,
       summary: issue.summary,
       status: issue.status,
+      isPremium: issue.isPremium,
       createdAt: issue.createdAt,
       updatedAt: issue.updatedAt,
     };

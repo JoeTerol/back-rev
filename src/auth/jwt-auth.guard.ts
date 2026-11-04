@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
 import { AccountSuspendedException } from './account-suspended.exception';
+import { IS_OPTIONAL_AUTH_KEY } from './optional-auth.decorator';
 import { IS_PUBLIC_KEY } from './public.decorator';
 
 interface AuthenticatedRequest {
@@ -36,6 +37,10 @@ export class JwtAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const token = this.extractToken(request);
     if (!token) {
+      // En las rutas con sesión opcional, sin token se atiende como visitante.
+      if (this.isOptionalAuth(context)) {
+        return true;
+      }
       throw new UnauthorizedException();
     }
 
@@ -51,6 +56,13 @@ export class JwtAuthGuard implements CanActivate {
 
     request.user = user;
     return true;
+  }
+
+  private isOptionalAuth(context: ExecutionContext): boolean {
+    return !!this.reflector.getAllAndOverride<boolean>(IS_OPTIONAL_AUTH_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
   }
 
   private async readUserId(token: string): Promise<string> {

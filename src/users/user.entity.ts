@@ -32,6 +32,9 @@ export class User {
 
   @Column({ default: false })
   banned: boolean;
+    // Hasta cuándo tiene premium. null = no tiene. Se calcula al leer, sin tareas programadas.
+  @Column({ type: Date, nullable: true })
+  premiumUntil: Date | null;
 
   @CreateDateColumn()
   createdAt: Date;
